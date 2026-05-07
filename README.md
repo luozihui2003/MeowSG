@@ -16,19 +16,50 @@ Mobile-first; installable on iOS via Safari → Share → "Add to Home Screen".
 - ✅ Cat list shows "Fed today" / "Not fed" plus who fed last
 - 🔍 Search by name, color, or area
 
-## One-time Firebase setup
+## Setup (after cloning)
 
-1. Go to https://console.firebase.google.com and create a new project.
-2. Enable **Authentication** → Sign-in method → **Google** → Enable.
-3. Enable **Firestore Database** in production mode (any region; `asia-southeast1` is closest to SG).
-4. Project settings → Your apps → Add a **Web app**, copy the `firebaseConfig` object.
-5. Paste those values into `src/env.ts` (replace the `REPLACE_ME`s).
-6. Open `.firebaserc` and replace `REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID` with your project ID.
-7. Deploy the security rules:
-   ```bash
-   firebase login
-   firebase deploy --only firestore:rules
-   ```
+You need **your own Firebase project** — Firebase Auth users and Firestore data are scoped per-project, and the real config values are not committed to this repo (only `.env.example` is). One-time setup:
+
+### 1. Create a Firebase project
+
+1. Go to https://console.firebase.google.com and click **Add project**.
+2. **Authentication** → Sign-in method → **Google** → Enable, then set a support email.
+3. **Firestore Database** → Create database → Start in **production mode** → pick a region (`asia-southeast1` is closest to SG; this is permanent).
+4. Project settings (⚙) → Your apps → click the **Web** icon (`</>`) to register a web app → copy the `firebaseConfig` object that appears.
+
+### 2. Add your config locally
+
+Copy the template and fill in the values from step 1.4:
+
+```bash
+cp .env.example .env.local
+```
+
+Then edit `.env.local`:
+
+```
+VITE_FIREBASE_API_KEY=AIza...
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project
+VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=1:...:web:...
+VITE_FIREBASE_MEASUREMENT_ID=G-...      # optional, only if you enabled Analytics
+```
+
+`.env.local` is gitignored — never commit it.
+
+### 3. Point the Firebase CLI at your project (only needed for deploying)
+
+Edit `.firebaserc` and replace `REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID` with your `projectId`. Then deploy the Firestore security rules and indexes:
+
+```bash
+npm install -g firebase-tools     # one-time, if you don't have it
+firebase login
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+> If you skip this step and start in test mode in the console, the app will work for ~30 days before rules lock down. Deploying the rules from this repo is the permanent fix.
 
 ## Run locally
 
@@ -36,6 +67,8 @@ Mobile-first; installable on iOS via Safari → Share → "Add to Home Screen".
 npm install
 npm start          # http://localhost:4200
 ```
+
+> Restart `npm start` whenever you change `.env.local` — Vite only reads env files at server start.
 
 To test from your iPhone on the same Wi-Fi:
 ```bash
@@ -59,9 +92,12 @@ The hosted URL will work as a PWA on iOS — open in Safari and tap Share → Ad
 ## Project layout
 
 ```
+.env.example                      # template — copy to .env.local and fill in
+.env.local                        # YOUR Firebase config (gitignored)
 index.html                        # Vite entry; PWA meta tags
 src/
-├── env.ts                        # ← put your Firebase config here
+├── env.ts                        # reads Firebase config from import.meta.env
+├── vite-env.d.ts                 # types for VITE_* env vars
 ├── styles.scss                   # global styles + Leaflet CSS
 ├── main.tsx                      # React entry (mounts <App />)
 ├── App.tsx                       # routes
@@ -84,7 +120,8 @@ src/
 
 ```
 cats/{catId}
-  name, color, isNeutered, personality, healthNotes, watchOut, preferredFoods,
+  name, color, sex ('male' | 'female' | 'unsure'), isNeutered,
+  personality, healthNotes, watchOut, preferredFoods,
   location { lat, lng }, areaDescription, photoUrl,
   createdByUid, createdByName, createdAt, updatedAt
 
