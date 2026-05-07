@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Cats: any signed-in user can read.
+    // Only signed-in users can create cats; only the original creator can edit/delete.
+    match /cats/{catId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdByUid == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && resource.data.createdByUid == request.auth.uid;
+    }
+
+    // Feeding logs: any signed-in user can read.
+    // Any signed-in user can create a log, but only as themselves.
+    // Logs are immutable.
+    match /feedings/{logId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.feederUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}
